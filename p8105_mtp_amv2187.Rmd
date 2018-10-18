@@ -1,0 +1,36 @@
+---
+title: "p8105_mtp_amv2187"
+author: "Alyssa Vanderbeek"
+date: "26 October 2018"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(rvest)
+library(httr)
+```
+
+# Download/import and save data locally
+```{r}
+# url = 'http://p8105.com/data/p8105_mtp_data.csv'
+# accel_data = read_csv(url)
+# write.csv(accel_data, file = paste0(getwd(), '/data/accel_data.csv'))
+
+accel_data = read.csv(paste0(getwd(), '/data/accel_data.csv'))
+```
+
+
+```{r}
+accel_data %>%
+  janitor::clean_names() %>%
+  gather(key = activity_period, value = activity_count, contains('activity')) %>%
+  rename('observation' = x) %>%
+  mutate(activity_period = str_split(activity_period, "_")[[1]][2],
+         activity_period = as.integer(activity_period))
+```
+
+What is the units of activity?
+What is the 'x' column?
