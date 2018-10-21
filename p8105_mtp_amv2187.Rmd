@@ -11,26 +11,40 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(rvest)
 library(httr)
+
+theme_set(theme_bw())
 ```
 
 # Download/import and save data locally
 ```{r}
-# url = 'http://p8105.com/data/p8105_mtp_data.csv'
-# accel_data = read_csv(url)
-# write.csv(accel_data, file = paste0(getwd(), '/data/accel_data.csv'))
-
-accel_data = read.csv(paste0(getwd(), '/data/accel_data.csv'))
-```
-
-
-```{r}
-accel_data %>%
+accel_data = read.csv('./data/accel_data.csv') %>%
   janitor::clean_names() %>%
-  gather(key = activity_period, value = activity_count, contains('activity')) %>%
-  rename('observation' = x) %>%
-  mutate(activity_period = str_split(activity_period, "_")[[1]][2],
-         activity_period = as.integer(activity_period))
+  gather(key = minute, value = activity_count, contains('activity')) %>%
+  mutate(minute = as.integer(str_sub(minute, 10)),
+         day = fct_relevel(day, 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'),
+         hour = ceiling(activity_period / 60)) %>% # the device records activity units for every minute of the day, so we can break this up into hours of the day, starting at midnight
+  arrange(week, day)
+
+str(accel_data)
+
+accel_data %>%
+  ggplot(aes(x = activity_period, y = activity_count)) +
+  facet_grid(day ~ .) +
+  geom_point()
+
+# distribution of activity by week
+ggplot(accel_data, aes(y = activity_count, x = week, group = week)) +
+  geom_boxplot() + 
+  coord_flip()
+
+# distribution of activity by day of the week
+ggplot(accel_data, aes(y = activity_count, x = day, group = day)) +
+  geom_boxplot() + 
+  coord_flip()
+
+# distribution of activity by hour
+ggplot(accel_data, aes(y = activity_count, x = hour, group = hour)) +
+  geom_boxplot()
 ```
 
-What is the units of activity?
-What is the 'x' column?
+
