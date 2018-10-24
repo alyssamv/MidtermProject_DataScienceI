@@ -35,7 +35,7 @@ agg_days = accel_data %>%
   mutate(order = row_number())
 
 agg_hour = accel_data %>%
-  group_by(day, hour) %>%
+  group_by(week, day, hour) %>%
   summarise(total_activity_hr = sum(activity_level)) %>%
   ungroup %>%
   mutate(order = row_number())
@@ -102,6 +102,29 @@ agg_days %>%
     x = 'Time (days)',
     y = 'Total Activity (daily)'
   )
+
+agg_hour %>%
+  ggplot(aes(x = hour, y = total_activity_hr, group = week, color = week)) + 
+  geom_line() +
+  facet_grid(day ~ .) +
+  theme(legend.position = 'none')
+
+
+# plot showing difference between total activity level by day and median. I'm interested in seeing whether we can identify any trends over time
+agg_days %>%
+  mutate(dif = total_activity - median(total_activity)) %>% 
+  ggplot(aes(x = order, y = dif)) +
+  geom_errorbar(aes(ymax = 0, ymin = dif)) +
+  labs(
+    y = 'Distance from median daily activity level',
+    x = 'Time (days)'
+  ) + 
+  coord_flip() 
+
+# anova(lm(accel_data$activity_level ~ accel_data$day))
+# anova(lm(accel_data$activity_level ~ accel_data$week))
+anova(lm(accel_data$activity_level ~ accel_data$week + accel_data$day))
+anova(lm(accel_data$activity_level ~ accel_data$hour))
 
 ```
 
