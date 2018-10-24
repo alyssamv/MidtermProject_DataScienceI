@@ -15,7 +15,6 @@ library(httr)
 theme_set(theme_bw())
 ```
 
-# Download/import and save data locally
 ```{r}
 accel_data = read.csv('./data/accel_data.csv') %>%
   janitor::clean_names() %>%
@@ -27,41 +26,46 @@ accel_data = read.csv('./data/accel_data.csv') %>%
 
 str(accel_data)
 
-# total activity counts for each day
+# total activity counts for each day by week
 agg_days = accel_data %>%
   group_by(week, day) %>%
   summarise(total_activity = sum(activity_level)) %>%
   ungroup %>%
   mutate(order = row_number())
 
+str(agg_days)
+
+# total activity counts by hour for each week and day
 agg_hour = accel_data %>%
   group_by(week, day, hour) %>%
   summarise(total_activity_hr = sum(activity_level)) %>%
   ungroup %>%
   mutate(order = row_number())
 
+str(agg_hour)
 
 ```
 
-## Overview of the data
+## Data overview
 
 Here I examine activity levels of a 63-year-old man over the course of several months (47 weeks). The individual has a BMI of 25, and was admitted to the CUMC Advanced Cardiac Care Center for congestive heart failure before participating in this study. The goal of the research is to understand whether activity level changes over time after a major cardiac event, and whether there is potential to gather information about health events from the data surrounding them.
 
 The dataset is comprised of information over 47 weeks (329 days), with information being collected every minute of every day. The resulting dataset is the quite large, with `r nrow(accel_data)` data points. This information is grouped by week and day of the week, and the minute of the day. 
 
-Activity level is measured in voltage by the device, where higher voltage counts indicate higher levels of activity. Of note, there was no missing data per se, but we can understand an activity count of 1 to mean that no activity was recorded in that minute; either the participant was not wearing the device, or the value simply represents that he has a heartbeat. For example, an entire day of recorded 1 values can be understood as a day on which the man did not wear the device. There were `r agg_days %>% filter(total_activity == 1440) %>% count` such days recorded. 
+Activity level is measured in voltage by the device, where higher voltage counts indicate higher levels of activity. Of note, there was no missing data per se, but we can understand an activity count of 1 to mean that no activity was recorded in that minute; either the participant was not active or not wearing the device. For example, an entire day of recorded 1 values can be understood as a day on which the man did not wear the device. There were `r agg_days %>% filter(total_activity == 1440) %>% count` such days recorded. 
 
 
 ```{r}
-# accel_data %>%
-# #    filter(week == 47) %>%
-#     ggplot(aes(x = minute/60, y = activity_level)) +
-#     facet_grid(day ~ .) +
-#     geom_point(alpha = 0.3) +
-#     labs(
-#       x = 'Hour of day',
-#       y = 'Activity level'
-#     )
+# dot plot of minute-to-minute activity level by day of the week across all weeks
+accel_data %>%
+#    filter(week == 47) %>%
+    ggplot(aes(x = minute/60, y = activity_level)) +
+    facet_grid(day ~ .) +
+    geom_point(alpha = 0.3) +
+    labs(
+      x = 'Hour of day',
+      y = 'Activity level'
+    )
 
 ```
 
@@ -69,29 +73,11 @@ Activity level is measured in voltage by the device, where higher voltage counts
 
 Upon receiving and tidying the data, I looked at some visualizations of the relationship between activity level and time. I examined the distribution of activity by week, day of the week, and hour of day, and found that the participant was most active during his waking hours, between 7 am and 11 pm, approximately (Figure 1). 
 
-```{r}
-# distribution of activity by week
-# ggplot(accel_data, aes(y = activity_level, x = week, group = week)) +
-#   geom_boxplot() +
-#   coord_flip()
 
-# distribution of activity by day of the week
-# ggplot(accel_data, aes(y = activity_level, x = day, group = day)) +
-#   geom_boxplot() +
-#   coord_flip()
-
-# distribution of activity by hour
-ggplot(accel_data, aes(y = activity_level, x = hour, group = hour)) +
-  geom_boxplot() +
-  labs(
-    title = 'Activity over the course of the day (distribution)',
-    x = 'Hour of day, beginning at midnight',
-    y = 'Activity Level',
-    caption = 'Figure 1'
-  )
-```
+### Total daily activity over time
 
 ```{r}
+# loess fit for total daily activity by day of the week
 agg_days %>%
   #filter(total_activity != 1440) %>%
   ggplot(aes(x = order, y = total_activity, color = day)) +
@@ -103,19 +89,15 @@ agg_days %>%
     y = 'Total Activity (daily)'
   )
 
-agg_hour %>%
-  ggplot(aes(x = hour, y = total_activity_hr, group = week, color = week)) + 
-  geom_line() +
-  facet_grid(.~day) +
-  theme(legend.position = 'none')
-
-
 # Linear model of relationship between time (week, day of the week, and hour of day)
 time_model = lm(accel_data$activity_level ~ accel_data$week + accel_data$day + accel_data$hour)
 summary(time_model) # summary of lm
 anova(time_model) # ANOVA test of difference between means
 
+# linear model to test whether activity changed over time. Significant positive slope says activity increased; significant negative intercept says acitvity decreased. Lack of significance fails to reject the null hypothesis that day over the course of the months of wear does not predict activity level.
+summary(lm(agg_days$total_activity ~ agg_days$order))
 
+# scatter plot of total activity by day
 agg_days %>%
   ggplot(aes(x = order, y = total_activity)) +
   geom_point() + 
@@ -125,6 +107,32 @@ agg_days %>%
     x = 'Time (days)'
   )
 
+```
+
+### Total activity over the course of the day
+
+```{r}
+# distribution of activity by hour (boxplot)
+ggplot(accel_data, aes(y = activity_level, x = hour, group = hour)) +
+  geom_boxplot() +
+  labs(
+    title = 'Activity over the course of the day (distribution)',
+    x = 'Hour of day, beginning at midnight',
+    y = 'Activity Level',
+    caption = 'Figure 1'
+  )
+
+# spaghetti plot for activity over the course of the day (by hour), grouped by week, faceted by day of the week
+agg_hour %>%
+  ggplot(aes(x = hour, y = total_activity_hr, group = week, color = week)) + 
+  geom_line() +
+  facet_grid(.~day) +
+  theme(legend.position = 'none')
+
+```
+
+```{r}
+wordcountaddin::text_stats("p8105_mtp_amv2187.Rmd")
 ```
 
 
