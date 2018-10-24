@@ -25,7 +25,7 @@ accel_data = read.csv('./data/accel_data.csv') %>%
 
 str(accel_data)
 
-# total activity counts for each day by week
+# aggregate daily total activity counts
 agg_days = accel_data %>%
   group_by(week, day) %>% # group by week and day
   summarise(total_activity = sum(activity_level)) %>% # get total activity for each day
@@ -33,15 +33,6 @@ agg_days = accel_data %>%
   mutate(order = row_number()) # order variable to plot later
 
 str(agg_days)
-
-# total activity counts by hour for each week and day
-agg_hour = accel_data %>%
-  group_by(week, day, hour) %>% # group by week, day, and hour
-  summarise(total_activity_hr = sum(activity_level)) %>% # get total activity for each hour of every day
-  ungroup %>%
-  mutate(order = row_number()) # order variable to plot later
-
-str(agg_hour)
 
 ```
 
@@ -59,57 +50,8 @@ Activity level is measured in voltage by the device, where higher voltage counts
 
 Upon receiving and tidying the data, I looked at the distribution of activity level and the relationship between activity level and time. There are seemingly many outliers - in particular, disproportionately high minute-to-minute activity counts - in the dataset. In other words, the distribution was highly skewed. Taking the log of the minute-to-minute counts reduces the skewness. However, I am more interested in total activity over an hour or day, which have less skewed distributions.
 
-```{r}
-# # boxplot of distribution of minute-to-minute activity
-# box_minute = accel_data %>%
-#   ggplot(aes(x = minute/60, y = activity_level)) + 
-#   geom_boxplot() +
-#   labs(
-#     x = 'Hour of the day',
-#     y = 'Minute-to-minute activity level'
-#   )
-# 
-# # boxplot of the log transformed minute-to-minute activity
-# box_minute_log = accel_data %>%
-#   ggplot(aes(x = minute/60, y = log(activity_level))) + 
-#   geom_boxplot() +
-#   labs(
-#     x = 'Hour of the day',
-#     y = 'Minute-to-minute activity (log transform)'
-#   )
-# 
-# # density of total daily activity - less skewed
-# box_daily = agg_days %>%
-#   ggplot(aes(x = total_activity)) + 
-#   geom_density() +
-#   labs(
-#     x = 'Daily activity level',
-#     y = 'Density'
-#   )
-# 
-# (box_minute + box_minute_log) / box_daily
-
-```
-
 
 ### Total daily activity over time
-
-
-
-```{r}
-# scatterplot of minute-to-minute activity level by day of the week across all weeks
-# accel_data %>%
-# #    filter(week == 47) %>%
-#     ggplot(aes(x = minute/60, y = activity_level)) +
-#     facet_grid(day ~ .) +
-#     geom_point(alpha = 0.3) +
-#     labs(
-#       x = 'Hour of day',
-#       y = 'Activity level'
-#     )
-
-
-```
 
 We are interested to know whether the man's activity levels increased over time. To do this, we can fit a linear model with the day (1 to 329) as the predictor, and look at the significance of the coefficient. With a p-value <0.0001 for a positive coefficient, we can conclude that activity level did indeed increase over the course of the observed months (Figure 1).
 
@@ -147,7 +89,7 @@ boxplot_dow = agg_days %>%
     caption = 'Figure 2a'
   ) + 
   theme(legend.position = 'none',
-        title = element_text(size = 9),
+        title = element_text(size = 8),
         axis.text.x = element_text(angle = 60, hjust = 1)) +
   viridis::scale_fill_viridis(
     discrete = T
@@ -168,7 +110,7 @@ scatter_dow_time = agg_days %>%
     caption = 'Figure 2b'
   ) +
   theme(legend.position = 'none',
-        title = element_text(size = 9)) + 
+        title = element_text(size = 8)) + 
   viridis::scale_color_viridis(
     name = 'Day of the week',
     discrete = T
@@ -180,22 +122,15 @@ boxplot_dow + scatter_dow_time
 
 ### Total activity over the course of the day
 
-I examined the distribution of activity by week, day of the week, and hour of day, and found that the participant was most active during his waking hours, between 7 am and 11 pm, approximately (Figure 1).
+I examined the distribution of activity by week, day of the week, and hour of day, and found that the participant was most active during his waking hours, between 7 am and 11 pm, approximately (Figure 3).
 
 ```{r}
-# distribution of activity by hour (boxplot)
-ggplot(accel_data, aes(y = activity_level, x = hour, group = hour)) +
-  geom_boxplot() +
-  labs(
-    title = 'Activity over the course of the day (distribution)',
-    x = 'Hour of day, beginning at midnight',
-    y = 'Activity Level',
-    caption = 'Figure 3'
-  )
-
-
-agg_hour %>%
-  mutate(day_over_time = ceiling(order/24)) %>%
+# daily 24-hour activity profile (spaghetti plot)
+accel_data %>%
+  group_by(week, day, hour) %>% # group by week, day, and hour
+  summarise(total_activity_hr = sum(activity_level)) %>% # get total activity for each hour of every day
+  ungroup %>%
+  mutate(day_over_time = ceiling(row_number()/24)) %>% # variable to group by day 1:329
   ggplot(aes(y = total_activity_hr, x = hour, group = day_over_time, 
              color = day_over_time)) +
   geom_line(alpha = 0.3) +
@@ -203,7 +138,7 @@ agg_hour %>%
     title = '24-hour activity profile for all recorded days',
     x = 'Hour of day (beginning at 12 am)',
     y = 'Activity Level',
-    caption = 'Figure 4',
+    caption = 'Figure 3',
     color = 'Time (days)'
   ) + 
   theme(legend.position = 'none') +
