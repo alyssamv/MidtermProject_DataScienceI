@@ -124,7 +124,7 @@ boxplot_dow + scatter_dow_time
 
 I examined the distribution of activity by week, day of the week, and hour of day, and found that on average, the participant was most active during his waking hours, between 7 am and 11 pm, approximately (Figure 3).
 
-```{r}
+```{r, warning=F}
 # daily 24-hour activity profile (spaghetti plot)
 #hourly = 
 accel_data %>%
@@ -152,9 +152,9 @@ accel_data %>%
   group_by(day) %>%
   ggplot(aes(y = total_activity_hr, x = hour, group = day, 
              color = day)) +
-  geom_smooth(se = F) +
+  geom_smooth(se = F) + # method = 'gam' and formula 'y ~ s(x, bs = "cs")'
   labs(
-    title = '24-hour activity profile by DOW',
+    title = 'Average 24-hour activity profile by DOW',
     x = 'Hour of day (beginning at 12 am)',
     y = 'Activity Level',
     caption = 'Figure 3',
@@ -165,25 +165,23 @@ accel_data %>%
 
 #hourly + hourly_DOW
 
+# 24-hour activity profile over time for each week
 accel_data %>%
-  group_by(week, day, hour) %>% # group by week, day, and hour
+  group_by(week, hour) %>% # group by week and hour
   summarise(total_activity_hr = sum(activity_level)) %>% # get total activity for each hour of every day
   ungroup %>%
   mutate(day_over_time = ceiling(row_number()/24)) %>% # variable to group by day 1:329
-  ggplot(aes(x = day_over_time, y = hour)) +
-  geom_point(aes(size = total_activity_hr), alpha = 0.2) +
+  ggplot(aes(x = week, y = hour)) +
+  geom_point(aes(size = total_activity_hr), alpha = 0.5) +
   labs(
     title = 'Hourly activity level over time',
     y = 'Hour of day (beginning at 12 am)',
-    x = 'Time (days)',
+    x = 'Time (weeks)',
     #caption = 'Figure 4',
     size = 'Activity level'
   ) + 
   theme(legend.position = 'bottom') +
   viridis::scale_color_viridis(discrete = T)
-
-
-
 
 ```
 
