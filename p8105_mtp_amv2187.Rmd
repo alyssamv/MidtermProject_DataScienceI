@@ -36,24 +36,24 @@ str(agg_days)
 
 ```
 
-## Data overview
+## Overview
 
 Here I examine activity levels of a 63-year-old man over the course of several months (47 weeks). The individual has a BMI of 25, and was admitted to the CUMC Advanced Cardiac Care Center for congestive heart failure before participating in this study. The goal of the research is to understand whether activity level changes over time after a major cardiac event, and whether there is potential to gather information about health events from the data surrounding them.
 
-The dataset is comprised of information over 47 weeks (329 days), with information being collected every minute of every day. The resulting dataset is the quite large, with `r nrow(accel_data)` data points. This information is grouped by week and day of the week, and the minute of the day. 
+The dataset is comprised of information over 47 weeks (329 days), with information being collected every minute. The resulting dataset is the quite large, with `r nrow(accel_data)` recorded minutes, grouped by week and day of the week. 
 
 Activity level is measured in voltage by the device, where higher voltage counts indicate higher levels of activity. Of note, there was no missing data per se, but we can understand an activity count of 1 to mean that no activity was recorded in that minute; either the participant was not active or not wearing the device. For example, an entire day of recorded 1 values can be understood as a day on which the man did not wear the device. There were `r agg_days %>% filter(total_activity == 1440) %>% count` such days recorded. 
 
 
 
-## Exploratory analysis - understanding the data
+## Analysis
 
-Upon receiving and tidying the data, I looked at the distribution of activity level and the relationship between activity level and time. There are seemingly many outliers - in particular, disproportionately high minute-to-minute activity counts - in the dataset. In other words, the distribution was highly skewed. Taking the log of the minute-to-minute counts reduces the skewness. However, I am more interested in total activity over an hour or day, which have less skewed distributions.
+Upon receiving and tidying the data, I looked at the distribution of activity level and the relationship between activity level and time. There are seemingly many outliers - in particular, disproportionately high minute-to-minute activity counts - in the dataset. Taking the log of the minute-to-minute counts reduces this skewness, but aggregating by hour or day does as well.
 
 
 ### Daily activity over time
 
-We are interested to know whether the man's activity levels increased over time. To do this, we can fit a linear model with the day (1 to 329) as the predictor, and look at the significance of the coefficient. With a p-value <0.0001 for a positive coefficient, we can conclude that activity level did indeed increase over the course of the observed months (Figure 1).
+We are interested to know whether the man's activity levels increased over time. To do this, I fit a linear model with the day (1 to 329) as the predictor, and conclude that activity level did on average increase over the course of the observed months (p<0.0001; Figure 1). However, time alone accounts for only a small proportion of the variability in activity level.
 
 ```{r}
 # linear model to test whether activity changed over time. Significant positive slope says activity increased; significant negative intercept says acitvity decreased. Lack of significance fails to reject the null hypothesis that day over the course of the months of wear does not predict activity level.
@@ -72,7 +72,7 @@ agg_days %>%
   )
 ```
 
-Since we also have information on the day of the week (DOW), we can test the hypothesis that DOW can also predict activity level. However, an ANOVA test suggests that there is little evidence to suggest a correlation; that is, that the average activity level varies by DOW (Figure 2a). This holds true when accounting for time (Figure 2b), and it may be noted that time itself remains a significant predictor of activity level. Interestingly, Saturday goes from being, on average, the least active DOW to the most active by the end of the study period.
+Since we also have information on the day of the week (DOW), we can test the hypothesis that DOW also predicts activity level. An ANOVA test suggests that there is little evidence to suggest that the average activity level varies by DOW (Figure 2). This holds true when accounting for time (Figure 3). Interestingly, Saturday goes from being, on average, the least active DOW to the most active by the end of the study period.
 
 ```{r}
 # ANOVA testing relationship between activity level and day of the week
@@ -86,7 +86,7 @@ boxplot_dow = agg_days %>%
     title = 'Daily activity level by day of the week',
     x = 'Day of the week',
     y = "Total activity level",
-    caption = 'Figure 2a'
+    caption = 'Figure 2'
   ) + 
   theme(legend.position = 'none',
         title = element_text(size = 8),
@@ -107,7 +107,7 @@ scatter_dow_time = agg_days %>%
     title = "Daily activity level by day of the week over time",
     x = 'Time (days)',
     y = 'Total activity level',
-    caption = 'Figure 2b'
+    caption = 'Figure 3'
   ) +
   theme(legend.position = 'none',
         title = element_text(size = 8)) + 
@@ -122,7 +122,7 @@ boxplot_dow + scatter_dow_time
 
 ### Activity over the course of the day
 
-I examined the distribution of activity by week, day of the week, and hour of day, and found that on average, the participant was most active during his waking hours, between 7 am and 11 pm, approximately (Figure 3).
+I examined the distribution of activity by week, day of the week, and hour of day, and found that the participant was most active during his waking hours, between 7 am and 11 pm, approximately (Figure 4). This trend does not vary much by DOW (Figure 4), but we can see a general increase in activity during waking hours over time (Figure 5).
 
 ```{r, warning=F}
 # daily 24-hour activity profile (spaghetti plot)
@@ -133,37 +133,16 @@ accel_data %>%
   ungroup %>%
   mutate(day_over_time = ceiling(row_number()/24)) %>% # variable to group by day 1:329
   ggplot(aes(y = total_activity_hr, x = hour, group = day_over_time)) +
-  geom_line(alpha = 0.3) +
+  geom_line(alpha = 0.3) + # plot the 24-hr activity for each day
+  geom_smooth(aes(group = day, color = day), se = F, alpha = 0.3, size = 0.5) + # add smoothed lines for day of the week
   labs(
     title = '24-hour activity profile for all recorded days',
     x = 'Hour of day (beginning at 12 am)',
     y = 'Activity Level',
-    color = 'Time (days)'
-  ) + 
-  theme(legend.position = 'none')
+    color = 'Day of the week',
+    caption = 'Figure 4'
+  ) 
 
-# smoothed 24-hour trends for each day of the week
-#hourly_DOW = 
-accel_data %>%
-  group_by(week, day, hour) %>% # group by week, day, and hour
-  summarise(total_activity_hr = sum(activity_level)) %>% # get total activity for each hour of every day
-  ungroup %>%
-  mutate(day_over_time = ceiling(row_number()/24)) %>% # variable to group by day 1:329
-  group_by(day) %>%
-  ggplot(aes(y = total_activity_hr, x = hour, group = day, 
-             color = day)) +
-  geom_smooth(se = F) + # method = 'gam' and formula 'y ~ s(x, bs = "cs")'
-  labs(
-    title = 'Average 24-hour activity profile by DOW',
-    x = 'Hour of day (beginning at 12 am)',
-    y = 'Activity Level',
-    caption = 'Figure 3',
-    color = 'Day of the week'
-  ) + 
-  theme(legend.position = 'bottom') +
-  viridis::scale_color_viridis(discrete = T)
-
-#hourly + hourly_DOW
 
 # 24-hour activity profile over time for each week
 accel_data %>%
@@ -175,9 +154,9 @@ accel_data %>%
   geom_point(aes(size = total_activity_hr), alpha = 0.5) +
   labs(
     title = 'Hourly activity level over time',
-    y = 'Hour of day (beginning at 12 am)',
+    y = 'Hour of day (beginning at midnight)',
     x = 'Time (weeks)',
-    #caption = 'Figure 4',
+    caption = 'Figure 5',
     size = 'Activity level'
   ) + 
   theme(legend.position = 'bottom') +
