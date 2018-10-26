@@ -15,13 +15,13 @@ theme_set(theme_bw())
 ```
 
 ```{r}
-accel_data = read.csv('./data/accel_data.csv') %>%
-  janitor::clean_names() %>%
-  gather(key = minute, value = activity_level, contains('activity')) %>%
-  mutate(minute = as.integer(str_sub(minute, 10)),
-         day = fct_relevel(day, 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'),
+accel_data = read.csv('./data/accel_data.csv') %>% # import
+  janitor::clean_names() %>% # clean names
+  gather(key = minute, value = activity_level, contains('activity')) %>% # tidy activity columns into single variable
+  mutate(minute = as.integer(str_sub(minute, 10)), # adjust activity period to numeric only
+         day = fct_relevel(day, 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'), # relevel day of the week to go from Sunday to Saturday
          hour = ceiling(minute / 60)) %>% # the device records activity units for every minute of the day, so we can break this up into hours of the day, starting at midnight
-  arrange(week, day)
+  arrange(week, day) # arrange df by week and day
 
 str(accel_data)
 
@@ -40,7 +40,7 @@ str(agg_days)
 
 Here I examine activity levels of a 63-year-old man over the course of several months (47 weeks). The individual has a BMI of 25, and was admitted to the CUMC Advanced Cardiac Care Center for congestive heart failure before participating in this study. The goal of the research is to understand whether activity level changes over time after a major cardiac event, and whether there is potential to gather information about health events from the data surrounding them.
 
-The dataset is comprised of information over 47 weeks (329 days), with information being collected every minute. The resulting dataset is the quite large, with `r nrow(accel_data)` recorded minutes, grouped by week and day of the week. 
+The dataset is comprised of information collected every minute over 47 weeks (329 days). The resulting dataset is the quite large, with `r nrow(accel_data)` recorded minutes, grouped by week and day of the week. 
 
 Activity level is measured in voltage by the device, where higher voltage counts indicate higher levels of activity. Of note, there was no missing data per se, but we can understand an activity count of 1 to mean that no activity was recorded in that minute; either the participant was not active or not wearing the device. For example, an entire day of recorded 1 values can be understood as a day on which the man did not wear the device. There were `r agg_days %>% filter(total_activity == 1440) %>% count` such days recorded. 
 
@@ -53,7 +53,7 @@ Upon receiving and tidying the data, I looked at the distribution of activity le
 
 ### Daily activity over time
 
-We are interested to know whether the man's activity levels increased over time. To do this, I fit a linear model with the day (1 to 329) as the predictor, and conclude that activity level did on average increase over the course of the observed months (p<0.0001; Figure 1). However, time alone accounts for only a small proportion of the variability in activity level.
+We are interested to know whether the man's activity levels increased over time. I fit a linear model with the day (1 to 329) as the predictor, which suggests that activity level did on average increase over the course of the observed months (p<0.0001; Figure 1). However, time alone accounts for only a small proportion of the variability in activity level.
 
 ```{r}
 # linear model to test whether activity changed over time. Significant positive slope says activity increased; significant negative intercept says acitvity decreased. Lack of significance fails to reject the null hypothesis that day over the course of the months of wear does not predict activity level.
@@ -63,7 +63,7 @@ summary(lm(agg_days$total_activity ~ agg_days$order))
 agg_days %>%
   ggplot(aes(x = order, y = total_activity)) +
   geom_point() + 
-  geom_smooth(method = 'lm', se = F)  +
+  geom_smooth(method = 'lm', se = F)  + # fit linear model, hide SE regions
   labs(
     title = 'Daily activity level over time',
     y = 'Total activity level',
@@ -72,7 +72,7 @@ agg_days %>%
   )
 ```
 
-Since we also have information on the day of the week (DOW), we can test the hypothesis that DOW also predicts activity level. An ANOVA test suggests that there is little evidence to suggest that the average activity level varies by DOW (Figure 2). This holds true when accounting for time (Figure 3). Interestingly, Saturday goes from being, on average, the least active DOW to the most active by the end of the study period.
+Since we also have information on the day of the week (DOW), we can test the hypothesis that DOW also predicts activity level. An ANOVA test indicates that there is little evidence to suggest that the average activity level varies by DOW (Figure 2). This holds true when accounting for time (Figure 3). Interestingly, Saturday goes from being, on average, the least active DOW to the most active by the end of the study period.
 
 ```{r}
 # ANOVA testing relationship between activity level and day of the week
@@ -90,10 +90,8 @@ boxplot_dow = agg_days %>%
   ) + 
   theme(legend.position = 'none',
         title = element_text(size = 8),
-        axis.text.x = element_text(angle = 60, hjust = 1)) +
-  viridis::scale_fill_viridis(
-    discrete = T
-  )
+        axis.text.x = element_text(angle = 60, hjust = 1)) + # angle DOW on x-axis for readability
+  viridis::scale_fill_viridis(discrete = T)
 
 # ANOVA testing relationship between activity level and day of the week over time
 anova(lm(agg_days$total_activity ~ agg_days$day + agg_days$order)) # ANOVA test of difference between means
@@ -122,7 +120,7 @@ boxplot_dow + scatter_dow_time
 
 ### Activity over the course of the day
 
-I examined the distribution of activity by week, day of the week, and hour of day, and found that the participant was most active during his waking hours, between 7 am and 11 pm, approximately (Figure 4). This trend does not vary much by DOW (Figure 4), but we can see a general increase in activity during waking hours over time (Figure 5).
+I examined the distribution of activity by week, day of the week, and hour of day, and found that the participant was most active during his waking hours, between 7 am and 11 pm, approximately (Figure 4). This trend does not vary much by DOW (Figure 4), but we can see a general increase in activity during waking hours over time (Figure 5, in agreement with prior linear model). 
 
 ```{r, warning=F}
 # daily 24-hour activity profile (spaghetti plot)
@@ -132,14 +130,14 @@ accel_data %>%
   summarise(total_activity_hr = sum(activity_level)) %>% # get total activity for each hour of every day
   ungroup %>%
   mutate(day_over_time = ceiling(row_number()/24)) %>% # variable to group by day 1:329
-  ggplot(aes(y = total_activity_hr, x = hour, group = day_over_time)) +
-  geom_line(alpha = 0.3) + # plot the 24-hr activity for each day
+  ggplot(aes(y = total_activity_hr, x = hour)) +
+  geom_line(aes(group = day_over_time), alpha = 0.3) + # plot the 24-hr activity for each day
   geom_smooth(aes(group = day, color = day), se = F, alpha = 0.3, size = 0.5) + # add smoothed lines for day of the week
   labs(
-    title = '24-hour activity profile for all recorded days',
-    x = 'Hour of day (beginning at 12 am)',
+    title = '24-hour activity for all recorded days',
+    x = 'Hour of day (beginning at midnight)',
     y = 'Activity Level',
-    color = 'Day of the week',
+    color = 'Aggregated trends \nby day of the week',
     caption = 'Figure 4'
   ) 
 
@@ -149,17 +147,16 @@ accel_data %>%
   group_by(week, hour) %>% # group by week and hour
   summarise(total_activity_hr = sum(activity_level)) %>% # get total activity for each hour of every day
   ungroup %>%
-  mutate(day_over_time = ceiling(row_number()/24)) %>% # variable to group by day 1:329
   ggplot(aes(x = week, y = hour)) +
   geom_point(aes(size = total_activity_hr), alpha = 0.5) +
   labs(
     title = 'Hourly activity level over time',
     y = 'Hour of day (beginning at midnight)',
     x = 'Time (weeks)',
-    caption = 'Figure 5',
+    caption = 'Figure 5. The size of the points indicates the amount of activity for a certain hour of the day (y-axis) \n in a given week (x-axis);smaller points indicate less activity and larger points indicate more.',
     size = 'Activity level'
   ) + 
-  theme(legend.position = 'bottom') +
+  theme(legend.position = 'none') +
   viridis::scale_color_viridis(discrete = T)
 
 ```
