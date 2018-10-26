@@ -40,20 +40,20 @@ str(agg_days)
 
 Here I examine activity levels of a 63-year-old man over the course of several months (47 weeks). The individual has a BMI of 25, and was admitted to the CUMC Advanced Cardiac Care Center for congestive heart failure before participating in this study. The goal of the research is to understand whether activity level changes over time after a major cardiac event, and whether there is potential to gather information about health events from the data surrounding them.
 
-The dataset is comprised of information collected every minute over 47 weeks (329 days). The resulting dataset is the quite large, with `r nrow(accel_data)` recorded minutes, grouped by week and day of the week. 
+The dataset is comprised of information collected every minute over 47 weeks (329 days, `r nrow(accel_data)` minutes).  
 
-Activity level is measured in voltage by the device, where higher voltage counts indicate higher levels of activity. Of note, there was no missing data per se, but we can understand an activity count of 1 to mean that no activity was recorded in that minute; either the participant was not active or not wearing the device. For example, an entire day of recorded 1 values can be understood as a day on which the man did not wear the device. There were `r agg_days %>% filter(total_activity == 1440) %>% count` such days recorded. 
+Activity level is measured in voltage, where higher counts indicate higher levels of activity. Of note, there was no missing data per se, but we can understand an activity count of 1 to mean that no activity was recorded in that minute; either the participant was not active or not wearing the device. For example, an entire day of recorded 1 values might be understood as a day on which the man did not wear the device. There were `r agg_days %>% filter(total_activity == 1440) %>% count` such days recorded. 
 
 
 
 ## Analysis
 
-Upon receiving and tidying the data, I looked at the distribution of activity level and the relationship between activity level and time. There are seemingly many outliers - in particular, disproportionately high minute-to-minute activity counts - in the dataset. Taking the log of the minute-to-minute counts reduces this skewness, but aggregating by hour or day does as well.
+Upon receiving and tidying the data, I looked at the distribution of activity level and the relationship between activity level and time. There are seemingly many outliers - in particular, disproportionately high minute-to-minute activity counts. Taking the log of the minute-to-minute counts reduces this skewness, but aggregating by hour or day does as well.
 
 
 ### Daily activity over time
 
-We are interested to know whether the man's activity levels increased over time. I fit a linear model with the day (1 to 329) as the predictor, which suggests that activity level did on average increase over the course of the observed months (p<0.0001; Figure 1). However, time alone accounts for only a small proportion of the variability in activity level.
+We are interested to know whether the man's activity levels increased over time. I fit a linear model with the day (1 to 329) as the predictor, which suggests that activity level did on average increase over the course of the observed months (p<0.0001; Figure 1). This trend makes sense in context; activity was restricted after the cardiac event (as is commonly recommended), and was then increased as time went on. It would be interesting to know the man's activity levels prior to the event as an informative contrast. 
 
 ```{r}
 # linear model to test whether activity changed over time. Significant positive slope says activity increased; significant negative intercept says acitvity decreased. Lack of significance fails to reject the null hypothesis that day over the course of the months of wear does not predict activity level.
@@ -72,7 +72,7 @@ agg_days %>%
   )
 ```
 
-Since we also have information on the day of the week (DOW), we can test the hypothesis that DOW also predicts activity level. An ANOVA test indicates that there is little evidence to suggest that the average activity level varies by DOW (Figure 2). This holds true when accounting for time (Figure 3). Interestingly, Saturday goes from being, on average, the least active DOW to the most active by the end of the study period.
+Since we also have information on the day of the week (DOW), we can test the hypothesis that DOW also predicts activity level. An ANOVA test indicates that there is little evidence to suggest that activity level varies by DOW (Figure 2). This holds true when accounting for time (Figure 3). Interestingly, Saturday goes from being, on average, the least active DOW to the most active by the end of the study period.
 
 ```{r}
 # ANOVA testing relationship between activity level and day of the week
